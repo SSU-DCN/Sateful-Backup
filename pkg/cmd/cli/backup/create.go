@@ -110,10 +110,10 @@ type CreateOptions struct {
 
 func NewCreateOptions() *CreateOptions {
 	return &CreateOptions{
-		IncludeNamespaces:       flag.NewStringArray("*"),
-		Labels:                  flag.NewMap(),
-		SnapshotVolumes:         flag.NewOptionalBool(nil),
-		IncludeClusterResources: flag.NewOptionalBool(nil),
+		IncludeNamespaces:       flag.NewStringArray("*"),  // 반환 값 : [*]
+		Labels:                  flag.NewMap(),             // 반환 값 :
+		SnapshotVolumes:         flag.NewOptionalBool(nil), // 반환 값 : {value : nil }
+		IncludeClusterResources: flag.NewOptionalBool(nil), // 반환 값 : {value : nil }
 	}
 }
 

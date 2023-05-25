@@ -41,6 +41,7 @@ import (
 	"k8s.io/utils/clock"
 	ctrl "sigs.k8s.io/controller-runtime"
 	kbclient "sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/config"
 
 	"github.com/vmware-tanzu/velero/internal/credentials"
 	"github.com/vmware-tanzu/velero/internal/resourcepolicies"
@@ -273,6 +274,40 @@ func (b *backupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			b.backupTracker.Delete(request.Namespace, request.Name)
 		}
 	}()
+
+	if *request.Spec.Checkpoint {
+		// 클라이언트 구성 가져오기
+		cfg, err := config.GetConfig()
+		if err != nil {
+			panic(err)
+		}
+
+		// 클라이언트 생성
+		c, err := kbclient.New(cfg, kbclient.Options{})
+		if err != nil {
+			panic(err)
+		}
+
+		podList, err := pkgbackup.GetPodListByLabelSelector(c, request)
+		if err != nil {
+			panic(err)
+		}
+
+		podInfoList, err := pkgbackup.GetPodInfoList(podList)
+		if err != nil {
+			panic(err)
+		}
+
+		for _, podInfo := range podInfoList {
+			err := pkgbackup.CallKubeletAPI(podInfo)
+			if err != nil {
+				fmt.Printf("Error calling kubelet API for Pod: %s\n", podInfo.PodName)
+				continue
+			}
+
+			fmt.Printf("Kubelet API called successfully for Pod: %s\n", podInfo.PodName)
+		}
+	}
 
 	log.Debug("Running backup")
 

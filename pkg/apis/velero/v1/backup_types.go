@@ -165,6 +165,8 @@ type BackupSpec struct {
 	// ResourcePolicy specifies the referenced resource policies that backup should follow
 	// +optional
 	ResourcePolicy *v1.TypedLocalObjectReference `json:"resourcePolicy,omitempty"`
+
+	Checkpoint *bool
 }
 
 // BackupHooks contains custom behaviors that should be executed at different phases of the backup.
