@@ -43,6 +43,7 @@ import (
 	kbclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 
+	"github.com/mjkang10/velero/pkg/checkpoint"
 	"github.com/vmware-tanzu/velero/internal/credentials"
 	"github.com/vmware-tanzu/velero/internal/resourcepolicies"
 	"github.com/vmware-tanzu/velero/internal/storage"
@@ -288,18 +289,18 @@ func (b *backupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			panic(err)
 		}
 
-		podList, err := pkgbackup.GetPodListByLabelSelector(c, request)
+		podList, err := checkpoint.GetPodListByLabelSelector(c, request)
 		if err != nil {
 			panic(err)
 		}
 
-		podInfoList, err := pkgbackup.GetPodInfoList(podList)
+		podInfoList, err := checkpoint.GetPodInfoList(podList)
 		if err != nil {
 			panic(err)
 		}
 
 		for _, podInfo := range podInfoList {
-			err := pkgbackup.CallKubeletAPI(podInfo)
+			err := checkpoint.CallKubeletAPI(podInfo)
 			if err != nil {
 				fmt.Printf("Error calling kubelet API for Pod: %s\n", podInfo.PodName)
 				continue
