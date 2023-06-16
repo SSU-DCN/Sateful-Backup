@@ -69,7 +69,7 @@ func GetPodInfoList(podList *corev1.PodList) ([]PodInfo, error) {
 	return podInfoList, nil
 }
 
-func callKubeletAPI(podInfo PodInfo) error {
+func CallKubeletAPI(podInfo PodInfo) error {
 	// API 엔드포인트 생성
 	apiURL := fmt.Sprintf("https://%s:10250/checkpoint/%s/%s/%s", podInfo.HostIP, podInfo.Namespace, podInfo.PodName, podInfo.Container)
 

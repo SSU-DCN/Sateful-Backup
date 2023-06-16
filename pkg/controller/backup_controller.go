@@ -276,7 +276,7 @@ func (b *backupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		}
 	}()
 
-	if *request.Spec.Checkpoint {
+	if request.Spec.Checkpoint != nil && *request.Spec.Checkpoint {
 		// 클라이언트 구성 가져오기
 		cfg, err := config.GetConfig()
 		if err != nil {
