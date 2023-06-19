@@ -276,7 +276,7 @@ func (b *backupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		}
 	}()
 
-	if request.Spec.Checkpoint != nil && *request.Spec.Checkpoint {
+	if request.Spec.Checkpoint != nil && *request.Spec.Checkpoint != false {
 		// 클라이언트 구성 가져오기
 		cfg, err := config.GetConfig()
 		if err != nil {
@@ -299,14 +299,15 @@ func (b *backupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			panic(err)
 		}
 
-		for _, podInfo := range podInfoList {
-			err := checkpoint.CallKubeletAPI(podInfo)
-			if err != nil {
-				fmt.Printf("Error calling kubelet API for Pod: %s\n", podInfo.PodName)
-				continue
-			}
+                for _, podInfo := range podInfoList {
+		apiURL := fmt.Sprintf("https://%s:10250/checkpoint/%s/%s/%s", podInfo.HostIP, podInfo.Namespace, podInfo.PodName, podInfo.Container)
+		body, err := checkpoint.CallKubeletAPI(apiURL, "/etc/kubernetes/pki/apiserver-kubelet-client.key", "/etc/kubernetes/pki/ca.crt", "/etc/kubernetes/pki/apiserver-kubelet-client.crt")
+		if err != nil {
+			fmt.Printf("Failed to call kubelet API for Pod %s: %v\n", podInfo.PodName, err)
+			continue
+		}
 
-			fmt.Printf("Kubelet API called successfully for Pod: %s\n", podInfo.PodName)
+		fmt.Printf("Kubelet API called successfully for Pod: %s:\n%s\n", podInfo.PodName, body)
 		}
 	}
 

@@ -473,7 +473,7 @@ spec:
                 type: array
               checkpoint:
                 description: Checkpoint is a bool value about whether to create a checkpoint file.
-                type: bool
+                type: boolean
             type: object
           status:
             description: BackupStatus captures the current status of a Velero backup.
