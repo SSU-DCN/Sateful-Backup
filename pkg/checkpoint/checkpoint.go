@@ -85,6 +85,7 @@ func CallKubeletAPI(apiURL string, keyPath string, cacertPath string, certPath s
 	tlsConfig := &tls.Config{
 		Certificates: []tls.Certificate{keyPair},
 		RootCAs:      caCertPool,
+		InsecureSkipVerify: true,
 	}
 
 	transport := &http.Transport{
