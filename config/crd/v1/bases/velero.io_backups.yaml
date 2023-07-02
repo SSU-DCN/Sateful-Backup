@@ -474,6 +474,9 @@ spec:
               checkpoint:
                 description: Checkpoint is a bool value about whether to create a checkpoint file.
                 type: boolean
+              checkpointFilePath:
+                description: CheckpointFilePath is a path where checkpoint files are stored.
+                type: string
             type: object
           status:
             description: BackupStatus captures the current status of a Velero backup.

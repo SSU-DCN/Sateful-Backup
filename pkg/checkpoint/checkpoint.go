@@ -19,6 +19,7 @@ type PodInfo struct {
 	PodName   string
 	Container string
 	HostIP    string
+	NodeName  string
 }
 
 func GetPodListByLabelSelector(c client.Client, request *pkgbackup.Request) (*corev1.PodList, error) {
@@ -61,6 +62,7 @@ func GetPodInfoList(podList *corev1.PodList) ([]PodInfo, error) {
 			PodName:   pod.Name,
 			Container: pod.Spec.Containers[0].Name, // 첫 번째 컨테이너의 이름을 가져옴
 			HostIP:    pod.Status.HostIP,
+			NodeName:  pod.Spec.NodeName,
 		}
 		podInfoList = append(podInfoList, podInfo)
 	}
@@ -109,6 +111,79 @@ func CallKubeletAPI(apiURL string, keyPath string, cacertPath string, certPath s
 
 	return string(body), nil
 }
+
+func CopyFiles(srcDir, destDir, searchString string) error {
+	files, err := ioutil.ReadDir(srcDir)
+	if err != nil {
+		return err
+	}
+
+	for _, file := range files {
+		if !file.IsDir() {
+			fileName := file.Name()
+			if strings.Contains(fileName, searchString) {
+				srcPath := filepath.Join(srcDir, fileName)
+				destPath := filepath.Join(destDir, fileName)
+
+				input, err := ioutil.ReadFile(srcPath)
+				if err != nil {
+					return err
+				}
+
+				err = ioutil.WriteFile(destPath, input, file.Mode())
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+/*
+// CopyFiles copies all files from the source directory to the destination directory.
+func CopyFiles(sourceDir, destinationDir string) error {
+	// Get the list of files in the source directory
+	files, err := ioutil.ReadDir(sourceDir)
+	if err != nil {
+		return fmt.Errorf("failed to read source directory: %v", err)
+	}
+
+	// Iterate over the files
+	for _, file := range files {
+		// Get the file path
+		filePath := filepath.Join(sourceDir, file.Name())
+
+		// Open the source file
+		sourceFile, err := os.Open(filePath)
+		if err != nil {
+			return fmt.Errorf("failed to open source file: %v", err)
+		}
+		defer sourceFile.Close()
+
+		// Create the destination file
+		destinationFilePath := filepath.Join(destinationDir, file.Name())
+		destinationFile, err := os.Create(destinationFilePath)
+		if err != nil {
+			return fmt.Errorf("failed to create destination file: %v", err)
+		}
+		defer destinationFile.Close()
+
+		// Copy the file contents
+		if _, err := io.Copy(destinationFile, sourceFile); err != nil {
+			return fmt.Errorf("failed to copy file contents: %v", err)
+		}
+
+		// Set file permissions and ownership
+		if err := os.Chmod(destinationFilePath, file.Mode()); err != nil {
+			return fmt.Errorf("failed to set file permissions: %v", err)
+		}
+	}
+
+	return nil
+}
+*/
 
 /*
 func CallKubeletAPI(podInfo PodInfo) error {

@@ -49,7 +49,8 @@ type BackupInfo struct {
 	BackupResourceList,
 	CSIVolumeSnapshots,
 	CSIVolumeSnapshotContents,
-	CSIVolumeSnapshotClasses io.Reader
+	CSIVolumeSnapshotClasses,
+	CheckpointingFiles, io.Reader
 }
 
 // BackupStore defines operations for creating, retrieving, and deleting

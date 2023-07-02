@@ -167,6 +167,8 @@ type BackupSpec struct {
 	ResourcePolicy *v1.TypedLocalObjectReference `json:"resourcePolicy,omitempty"`
 
 	Checkpoint *bool `json:"checkpoint,omitempty"`
+
+	CheckpointFilePath string `json:"checkpointFilePath,omitempty"`
 }
 
 // BackupHooks contains custom behaviors that should be executed at different phases of the backup.

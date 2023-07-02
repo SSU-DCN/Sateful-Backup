@@ -23,6 +23,8 @@ import (
 	"os"
 	"sync"
 	"time"
+	"io"
+	"path/filepath"
 
 	snapshotv1api "github.com/kubernetes-csi/external-snapshotter/client/v4/apis/volumesnapshot/v1"
 	snapshotterClientSet "github.com/kubernetes-csi/external-snapshotter/client/v4/clientset/versioned"
@@ -276,6 +278,8 @@ func (b *backupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		}
 	}()
 
+	var podInfoList []PodInfo
+	var checkpointing = false
 	if request.Spec.Checkpoint != nil && *request.Spec.Checkpoint != false {
 		// 클라이언트 구성 가져오기
 		cfg, err := config.GetConfig()
@@ -294,7 +298,7 @@ func (b *backupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			panic(err)
 		}
 
-		podInfoList, err := checkpoint.GetPodInfoList(podList)
+		podInfoList, err = checkpoint.GetPodInfoList(podList)
 		if err != nil {
 			panic(err)
 		}
@@ -308,7 +312,17 @@ func (b *backupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		}
 
 		fmt.Printf("Kubelet API called successfully for Pod: %s:\n%s\n", podInfo.PodName, body)
+
+		checkpointDirPath= fmt.Sprintf("/var/lib/kubelet/%s-checkpoints", podInfo.NodeName)
+		files, err := ioutil.ReadDir(checkpointDirPath)
+		if err != nil {
+			persistErrs = append(persistErrs, errors.Wrapf(err, "failed to read directory: %s", directoryPath))
+		} else {
+			for _, file := range files {
+				if strings.Contains(file.Name(), podInfo.PodName) {
+					request.Spec.CheckpointFilePath := filepath.Join(directoryPath, file.Name())
 		}
+
 	}
 
 	log.Debug("Running backup")
@@ -662,6 +676,21 @@ func (b *backupReconciler) runBackup(backup *pkgbackup.Request) error {
 	if err != nil {
 		return err
 	}
+
+	var checkpointFile *os.File
+
+	if request.Spec.Checkpoint != nil && *request.Spec.Checkpoint != false {
+		backupLog.Info("Getting checkpoint files")
+		checkpointFile, err = os.Open(request.Spec.CheckpointFilePath)
+
+		if err != nil {
+			persistErrs = append(persistErrs, errors.Wrap(err, "failed to read file: %s", filePath))
+		} else {
+			defer checkpointFile.Close()
+		}
+	}
+
+
 	backupLog.Info("Setting up backup store to check for backup existence")
 	backupStore, err := b.backupStoreGetter.Get(backup.StorageLocation, pluginManager, backupLog)
 	if err != nil {
@@ -814,7 +843,7 @@ func (b *backupReconciler) runBackup(backup *pkgbackup.Request) error {
 	if logFile, err := backupLog.GetPersistFile(); err != nil {
 		fatalErrs = append(fatalErrs, errors.Wrap(err, "error getting backup log file"))
 	} else {
-		if errs := persistBackup(backup, backupFile, logFile, backupStore, volumeSnapshots, volumeSnapshotContents, volumeSnapshotClasses, results); len(errs) > 0 {
+		if errs := persistBackup(backup, backupFile, logFile, checkpointFile, backupStore, volumeSnapshots, volumeSnapshotContents, volumeSnapshotClasses, results); len(errs) > 0 {
 			fatalErrs = append(fatalErrs, errs...)
 		}
 	}
@@ -867,7 +896,7 @@ func recordBackupMetrics(log logrus.FieldLogger, backup *velerov1api.Backup, bac
 }
 
 func persistBackup(backup *pkgbackup.Request,
-	backupContents, backupLog *os.File,
+	backupContents, backupLog, checkpointFile *os.File,
 	backupStore persistence.BackupStore,
 	csiVolumeSnapshots []snapshotv1api.VolumeSnapshot,
 	csiVolumeSnapshotContents []snapshotv1api.VolumeSnapshotContent,
@@ -948,6 +977,7 @@ func persistBackup(backup *pkgbackup.Request,
 		CSIVolumeSnapshots:        csiSnapshotJSON,
 		CSIVolumeSnapshotContents: csiSnapshotContentsJSON,
 		CSIVolumeSnapshotClasses:  csiSnapshotClassesJSON,
+		CheckpointingFiles:        checkpointFile,
 	}
 	if err := backupStore.PutBackup(backupInfo); err != nil {
 		persistErrs = append(persistErrs, err)
