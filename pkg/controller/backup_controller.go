@@ -23,8 +23,9 @@ import (
 	"os"
 	"sync"
 	"time"
-	"io"
 	"path/filepath"
+	"io/ioutil"
+	"strings"
 
 	snapshotv1api "github.com/kubernetes-csi/external-snapshotter/client/v4/apis/volumesnapshot/v1"
 	snapshotterClientSet "github.com/kubernetes-csi/external-snapshotter/client/v4/clientset/versioned"
@@ -278,8 +279,7 @@ func (b *backupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		}
 	}()
 
-	var podInfoList []PodInfo
-	var checkpointing = false
+	var podInfoList []checkpoint.PodInfo
 	if request.Spec.Checkpoint != nil && *request.Spec.Checkpoint != false {
 		// 클라이언트 구성 가져오기
 		cfg, err := config.GetConfig()
@@ -304,25 +304,30 @@ func (b *backupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		}
 
                 for _, podInfo := range podInfoList {
-		apiURL := fmt.Sprintf("https://%s:10250/checkpoint/%s/%s/%s", podInfo.HostIP, podInfo.Namespace, podInfo.PodName, podInfo.Container)
-		body, err := checkpoint.CallKubeletAPI(apiURL, "/etc/kubernetes/pki/apiserver-kubelet-client.key", "/etc/kubernetes/pki/ca.crt", "/etc/kubernetes/pki/apiserver-kubelet-client.crt")
-		if err != nil {
-			fmt.Printf("Failed to call kubelet API for Pod %s: %v\n", podInfo.PodName, err)
-			continue
+			apiURL := fmt.Sprintf("https://%s:10250/checkpoint/%s/%s/%s", podInfo.HostIP, podInfo.Namespace, podInfo.PodName, podInfo.Container)
+			body, err := checkpoint.CallKubeletAPI(apiURL, "/etc/kubernetes/pki/apiserver-kubelet-client.key", "/etc/kubernetes/pki/ca.crt", "/etc/kubernetes/pki/apiserver-kubelet-client.crt")
+			if err != nil {
+				fmt.Printf("Failed to call kubelet API for Pod %s: %v\n", podInfo.PodName, err)
+				continue
+			}
+
+			fmt.Printf("Kubelet API called successfully for Pod: %s:\n%s\n", podInfo.PodName, body)
+
+			checkpointDirPath := fmt.Sprintf("/var/lib/kubelet/%s-checkpoints", podInfo.NodeName)
+
+			files, err := ioutil.ReadDir(checkpointDirPath)
+			if err != nil {
+				fmt.Printf("Failed to read directory: %s: %v\n", checkpointDirPath, err)
+				continue
+			} else {
+				for _, file := range files {
+					if strings.Contains(file.Name(), podInfo.PodName) {
+						request.Spec.CheckpointFilePath = filepath.Join(checkpointDirPath, file.Name())
+					}
+				}
+			}
+
 		}
-
-		fmt.Printf("Kubelet API called successfully for Pod: %s:\n%s\n", podInfo.PodName, body)
-
-		checkpointDirPath= fmt.Sprintf("/var/lib/kubelet/%s-checkpoints", podInfo.NodeName)
-		files, err := ioutil.ReadDir(checkpointDirPath)
-		if err != nil {
-			persistErrs = append(persistErrs, errors.Wrapf(err, "failed to read directory: %s", directoryPath))
-		} else {
-			for _, file := range files {
-				if strings.Contains(file.Name(), podInfo.PodName) {
-					request.Spec.CheckpointFilePath := filepath.Join(directoryPath, file.Name())
-		}
-
 	}
 
 	log.Debug("Running backup")
@@ -679,12 +684,12 @@ func (b *backupReconciler) runBackup(backup *pkgbackup.Request) error {
 
 	var checkpointFile *os.File
 
-	if request.Spec.Checkpoint != nil && *request.Spec.Checkpoint != false {
+	if backup.Spec.Checkpoint != nil && *backup.Spec.Checkpoint != false {
 		backupLog.Info("Getting checkpoint files")
-		checkpointFile, err = os.Open(request.Spec.CheckpointFilePath)
+		checkpointFile, err = os.Open(backup.Spec.CheckpointFilePath)
 
 		if err != nil {
-			persistErrs = append(persistErrs, errors.Wrap(err, "failed to read file: %s", filePath))
+			fmt.Printf("failed to read file: %s: %v\n", backup.Spec.CheckpointFilePath, err)
 		} else {
 			defer checkpointFile.Close()
 		}

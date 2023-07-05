@@ -50,7 +50,7 @@ type BackupInfo struct {
 	CSIVolumeSnapshots,
 	CSIVolumeSnapshotContents,
 	CSIVolumeSnapshotClasses,
-	CheckpointingFiles, io.Reader
+	CheckpointingFiles io.Reader
 }
 
 // BackupStore defines operations for creating, retrieving, and deleting
@@ -258,6 +258,10 @@ func (s *objectBackupStore) PutBackup(info BackupInfo) error {
 		deleteErr := s.objectStore.DeleteObject(s.bucket, s.layout.getBackupMetadataKey(info.Name))
 		return kerrors.NewAggregate([]error{err, deleteErr})
 	}
+
+	if err := seekAndPutObject(s.objectStore, s.bucket, s.layout.getCheckpointContentsKey(info.Name), info.Log); err != nil {
+                s.logger.WithError(err).WithField("backup", info.Name).Error("Error uploading checkpoint files")
+        }
 
 	// Since the logic for all of these files is the exact same except for the name and the contents,
 	// use a map literal to iterate through them and write them to the bucket.

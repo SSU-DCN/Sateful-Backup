@@ -81,6 +81,10 @@ func (l *ObjectStoreLayout) getBackupLogKey(backup string) string {
 	return path.Join(l.subdirs["backups"], backup, fmt.Sprintf("%s-logs.gz", backup))
 }
 
+func (l *ObjectStoreLayout) getCheckpointContentsKey(backup string) string {
+        return path.Join(l.subdirs["backups"], backup, fmt.Sprintf("%s-checkpointfiles.tar", backup))
+}
+
 func (l *ObjectStoreLayout) getPodVolumeBackupsKey(backup string) string {
 	return path.Join(l.subdirs["backups"], backup, fmt.Sprintf("%s-podvolumebackups.json.gz", backup))
 }

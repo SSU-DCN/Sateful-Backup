@@ -112,6 +112,7 @@ func CallKubeletAPI(apiURL string, keyPath string, cacertPath string, certPath s
 	return string(body), nil
 }
 
+/*
 func CopyFiles(srcDir, destDir, searchString string) error {
 	files, err := ioutil.ReadDir(srcDir)
 	if err != nil {
@@ -140,6 +141,7 @@ func CopyFiles(srcDir, destDir, searchString string) error {
 
 	return nil
 }
+*/
 
 /*
 // CopyFiles copies all files from the source directory to the destination directory.
